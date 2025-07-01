@@ -28,5 +28,5 @@ func (h *PriceHandler) Start(c *gin.Context) {
 		return
 	}
 
-	c.IndentedJSON(http.StatusOK, gin.H{"message": "successfully activated"})
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "successfully activated", "data": req})
 }

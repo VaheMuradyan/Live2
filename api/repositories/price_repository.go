@@ -14,14 +14,18 @@ func NewPriceRepository(db *gorm.DB) *PriceRepository {
 }
 
 func (p *PriceRepository) ActivateEvents(events []string) error {
-	p.db.Model(&models.Event{}).Update("active", false)
+	if err := p.db.Model(&models.Event{}).Where("1 = 1").Update("active", false).Error; err != nil {
+		return err
+	}
 	err := p.db.Model(&models.Event{}).Where("code IN ?", events).
 		Update("active", true).Error
 	return err
 }
 
 func (p *PriceRepository) ActivateMarkets(markets []string) error {
-	p.db.Model(&models.Market{}).Update("active", false)
+	if err := p.db.Model(&models.Market{}).Where("1 = 1").Update("active", false).Error; err != nil {
+		return err
+	}
 	err := p.db.Model(&models.Market{}).Where("code IN ?", markets).
 		Update("active", true).Error
 	return err
