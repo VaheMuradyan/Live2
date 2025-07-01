@@ -9,6 +9,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"log"
+	"strings"
+	"time"
 )
 
 const (
@@ -41,36 +43,33 @@ func (s *CentrifugoClient) Close() {
 	s.cfConn.Close()
 }
 
-func (s *CentrifugoClient) SendToCentrifugo(price *models.Price) error {
+func (s *CentrifugoClient) SendToCentrifugo(coefficient *models.Coefficient) error {
 	md := metadata.New(map[string]string{
 		"authorization": "apikey " + apiKey,
 	})
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
-	//sport := price.Market.MarketCollection.Event.Competition.Country.Sport.Name
-	//marketCollectionCode := price.Market.MarketCollection.Code
-	//data := map[string]interface{}{
-	//	"sport":                  sport,
-	//	"country":                price.Market.MarketCollection.Event.Competition.Country.Name,
-	//	"competition":            price.Market.MarketCollection.Event.Competition.Name,
-	//	"event":                  price.Market.MarketCollection.Event.Name,
-	//	"market":                 price.Code,
-	//	"market_type":            price.Market.Type,
-	//	"market_collection_code": price.Market.MarketCollection.Code,
-	//	"price":                  price.Name,
-	//	"old_coefficient":        float32(price.PreviousCoefficient),
-	//	"new_coefficient":        float32(price.CurrentCoefficient),
-	//	"timestamp":              time.Now().Format(time.RFC3339),
-	//	"change":                 float32(price.CurrentCoefficient) - float32(price.PreviousCoefficient),
-	//}
-	//
-	//channelName := strings.ToLower(sport) + "_" + strings.ToLower(marketCollectionCode)
+	price := coefficient.Price
+	market := price.Market
+	marketCollection := market.MarketCollection
+	event := coefficient.Event
+	competition := event.Competition
+	country := competition.Country
+	sport := country.Sport
 
 	data := map[string]interface{}{
-		"ank": "ank",
+		"sport":                  sport.Name,
+		"country":                country.Name,
+		"competition":            competition.Name,
+		"event":                  event.Name,
+		"market":                 market.Code,
+		"market_collection_code": marketCollection.Code,
+		"price":                  price.Name,
+		"new_coefficient":        float32(coefficient.Coefficient),
+		"timestamp":              time.Now().Format(time.RFC3339),
 	}
 
-	channelName := "ban"
+	channelName := strings.ToLower(sport.Name) + "_" + strings.ToLower(marketCollection.Code)
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {

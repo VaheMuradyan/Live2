@@ -2,17 +2,11 @@ package handlers
 
 import (
 	"github.com/VaheMuradyan/Live2/api/services"
+	"github.com/VaheMuradyan/Live2/db/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
-type body struct {
-	Ank string `json:"ank"`
-}
-
-type response struct {
-	Bar string `json:"bar"`
-}
 type PriceHandler struct {
 	service *services.PriceService
 }
@@ -22,19 +16,17 @@ func NewHandler(service *services.PriceService) *PriceHandler {
 }
 
 func (h *PriceHandler) Start(c *gin.Context) {
-	var reqBody body
+	var req models.RequestData
 
-	if err := c.ShouldBindJSON(&reqBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cant bind request"})
 		return
 	}
 
-	if err := h.service.InchvorBan(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "chi ashxatum"})
+	if err := h.service.ActivateData(req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	res := &response{Bar: "sax tuyna ashxatuma"}
-
-	c.IndentedJSON(http.StatusOK, res)
+	c.IndentedJSON(http.StatusOK, gin.H{"message": "successfully activated"})
 }

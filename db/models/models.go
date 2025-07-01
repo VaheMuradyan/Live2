@@ -2,7 +2,6 @@ package models
 
 import (
 	"gorm.io/gorm"
-	"time"
 )
 
 type Sport struct {
@@ -44,44 +43,50 @@ type Team struct {
 
 type Event struct {
 	gorm.Model
-	Name              string `gorm:"unique;size:255"`
-	CompetitionID     uint
-	Competition       Competition        `gorm:"foreignKey:CompetitionID"`
-	MarketCollections []MarketCollection `gorm:"foreignKey:EventID"`
-	Teams             []Team             `gorm:"many2many:event_teams;"`
-	Active            bool               `gorm:"default:true"`
+	Name          string
+	CompetitionID uint
+	Competition   Competition   `gorm:"foreignKey:CompetitionID"`
+	Teams         []Team        `gorm:"many2many:event_teams;"`
+	Coefficients  []Coefficient `gorm:"foreignKey:EventID"`
+	Active        bool          `gorm:"default:false"`
+	Code          string        `gorm:"unique"`
 }
 
 type MarketCollection struct {
 	gorm.Model
-	Name    string
-	Code    string
-	EventID uint
-	Event   Event    `gorm:"foreignKey:EventID"`
+	Name    string   `gorm:"unique"`
+	Code    string   `gorm:"unique"`
 	Markets []Market `gorm:"foreignKey:MarketCollectionID"`
 }
 
 type Market struct {
 	gorm.Model
-	Name               string
+	Name               string `gorm:"unique"`
 	Code               string `gorm:"unique"`
-	Type               string
 	MarketCollectionID uint
 	MarketCollection   MarketCollection `gorm:"foreignKey:MarketCollectionID" `
 	Prices             []Price          `gorm:"foreignKey:MarketID"`
-	LastUpdated        time.Time
+	Active             bool             `gorm:"default:false"`
 }
 
 type Price struct {
 	gorm.Model
-	Name                string
-	Code                string
-	MarketID            uint
-	Market              Market  `gorm:"foreignKey:MarketID"`
-	CurrentCoefficient  float64 `gorm:"type:decimal(9,4);"`
-	PreviousCoefficient float64 `gorm:"type:decimal(9,4);"`
-	Active              bool    `gorm:"default:true"`
-	LastUpdated         time.Time
+	Name        string `gorm:"unique"`
+	Code        string `gorm:"unique"`
+	MarketID    uint
+	Market      Market        `gorm:"foreignKey:MarketID"`
+	Coefficient []Coefficient `gorm:"foreignKey:PriceID"`
+	Active      bool          `gorm:"default:true"`
+}
+
+type Coefficient struct {
+	gorm.Model
+	EventID     uint
+	Event       Event `gorm:"foreignKey:EventID"`
+	PriceID     uint
+	Price       Price   `gorm:"foreignKey:PriceID"`
+	Coefficient float64 `gorm:"type:decimal(9,4);"`
+	Active      bool    `gorm:"default:true"`
 }
 
 type Score struct {
@@ -91,4 +96,9 @@ type Score struct {
 	Team1Score int
 	Team2Score int
 	Total      int
+}
+
+type RequestData struct {
+	EventCodes  []string `json:"event_codes"`
+	MarketCodes []string `json:"market_codes"`
 }
