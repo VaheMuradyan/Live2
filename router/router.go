@@ -5,6 +5,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(handler *handlers.PriceHandler, router *gin.Engine) {
+func SetupRouter(router *gin.Engine, handler *handlers.PriceHandler) {
 	router.POST("/api/start", handler.Start)
 }

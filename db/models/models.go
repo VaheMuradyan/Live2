@@ -41,17 +41,6 @@ type Team struct {
 	Sports       []Sport       `gorm:"many2many:sport_teams;"`
 }
 
-type Event struct {
-	gorm.Model
-	Name          string
-	CompetitionID uint
-	Competition   Competition   `gorm:"foreignKey:CompetitionID"`
-	Teams         []Team        `gorm:"many2many:event_teams;"`
-	Coefficients  []Coefficient `gorm:"foreignKey:EventID"`
-	Active        bool          `gorm:"default:false"`
-	Code          string        `gorm:"unique"`
-}
-
 type MarketCollection struct {
 	gorm.Model
 	Name    string   `gorm:"unique"`
@@ -87,6 +76,18 @@ type Coefficient struct {
 	Price       Price   `gorm:"foreignKey:PriceID"`
 	Coefficient float64 `gorm:"type:decimal(9,4);"`
 	Active      bool    `gorm:"default:true"`
+}
+
+type Event struct {
+	gorm.Model
+	Name          string
+	CompetitionID uint
+	Competition   Competition   `gorm:"foreignKey:CompetitionID"`
+	Teams         []Team        `gorm:"many2many:event_teams;"`
+	Coefficients  []Coefficient `gorm:"foreignKey:EventID"`
+	Score         *Score        `gorm:"foreignKey:EventID"`
+	Active        bool          `gorm:"default:false"`
+	Code          string        `gorm:"unique"`
 }
 
 type Score struct {

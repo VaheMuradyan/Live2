@@ -14,7 +14,7 @@ import (
 func main() {
 	db := db2.Connect()
 
-	client := centrifugoClient.NewCentrifugoClient()
+	client := centrifugoClient.NewCentrifugoClient(db)
 	generator2 := generator.NewGenerator(client, db)
 
 	repo := repositories.NewPriceRepository(db)
@@ -23,7 +23,9 @@ func main() {
 
 	r := gin.Default()
 
-	router.SetupRouter(handler, r)
+	router.SetupRouter(r, handler)
+
+	defer client.Close()
 
 	r.Run(":8080")
 }

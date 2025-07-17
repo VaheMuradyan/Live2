@@ -20,6 +20,9 @@ func NewPriceService(repo *repositories.PriceRepository, generator *generator.Ge
 }
 
 func (s *PriceService) ActivateData(data models.RequestData) error {
+	if err := s.repo.ActivateCoefficients(); err != nil {
+		return errors.New("failed to activate coefficients")
+	}
 	if err := s.repo.ActivateMarkets(data.MarketCodes); err != nil {
 		return errors.New("failed to activate markets")
 	}
@@ -27,7 +30,7 @@ func (s *PriceService) ActivateData(data models.RequestData) error {
 		return errors.New("failed to activate events")
 	}
 
-	s.generator.Start()
+	go s.generator.Start()
 
 	return nil
 }

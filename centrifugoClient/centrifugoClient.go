@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"gorm.io/gorm"
 	"log"
 	"strings"
 	"time"
@@ -19,10 +20,12 @@ const (
 
 type CentrifugoClient struct {
 	cfConn   *grpc.ClientConn
-	cfClient apiproto.CentrifugoApiClient
+	CfClient apiproto.CentrifugoApiClient
+	Ctx      context.Context
+	db       *gorm.DB
 }
 
-func NewCentrifugoClient() *CentrifugoClient {
+func NewCentrifugoClient(db *gorm.DB) *CentrifugoClient {
 
 	conn, err := grpc.NewClient("localhost:10000", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -31,9 +34,16 @@ func NewCentrifugoClient() *CentrifugoClient {
 
 	client := apiproto.NewCentrifugoApiClient(conn)
 
+	md := metadata.New(map[string]string{
+		"authorization": "apikey " + apiKey,
+	})
+	ctx := metadata.NewOutgoingContext(context.Background(), md)
+
 	server := &CentrifugoClient{
 		cfConn:   conn,
-		cfClient: client,
+		CfClient: client,
+		Ctx:      ctx,
+		db:       db,
 	}
 
 	return server
@@ -43,16 +53,21 @@ func (s *CentrifugoClient) Close() {
 	s.cfConn.Close()
 }
 
-func (s *CentrifugoClient) SendToCentrifugo(coefficient *models.Coefficient) error {
-	md := metadata.New(map[string]string{
-		"authorization": "apikey " + apiKey,
-	})
-	ctx := metadata.NewOutgoingContext(context.Background(), md)
+func (s *CentrifugoClient) SendToCentrifugo(coefficient models.Coefficient) error {
+	var fullCoeff models.Coefficient
 
-	price := coefficient.Price
+	err := s.db.Preload("Event.Competition.Country.Sport").
+		Preload("Price.Market.MarketCollection").
+		First(&fullCoeff, coefficient.ID).Error
+
+	if err != nil {
+		return err
+	}
+
+	price := fullCoeff.Price
 	market := price.Market
 	marketCollection := market.MarketCollection
-	event := coefficient.Event
+	event := fullCoeff.Event
 	competition := event.Competition
 	country := competition.Country
 	sport := country.Sport
@@ -65,11 +80,16 @@ func (s *CentrifugoClient) SendToCentrifugo(coefficient *models.Coefficient) err
 		"market":                 market.Code,
 		"market_collection_code": marketCollection.Code,
 		"price":                  price.Name,
-		"new_coefficient":        float32(coefficient.Coefficient),
+		"new_coefficient":        coefficient.Coefficient,
+		"old_coefficient":        float64(5),
 		"timestamp":              time.Now().Format(time.RFC3339),
+		"coefficient_id":         coefficient.ID,
+		"active":                 coefficient.Active,
 	}
 
-	channelName := strings.ToLower(sport.Name) + "_" + strings.ToLower(marketCollection.Code)
+	lower := strings.ToLower(event.Name)
+
+	channelName := strings.ReplaceAll(lower, " ", "") + "_" + strings.ToLower(marketCollection.Code) + "_" + strings.ToLower(market.Code)
 
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -81,7 +101,10 @@ func (s *CentrifugoClient) SendToCentrifugo(coefficient *models.Coefficient) err
 		Data:    jsonData,
 	}
 
-	_, err = s.cfClient.Publish(ctx, req)
+	_, err = s.CfClient.Publish(s.Ctx, req)
+	if err != nil {
+		return err
+	}
 
 	return err
 }
