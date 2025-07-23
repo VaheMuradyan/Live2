@@ -1,18 +1,17 @@
-package services
+package prices
 
 import (
 	"errors"
-	"github.com/VaheMuradyan/Live2/api/repositories"
 	"github.com/VaheMuradyan/Live2/db/models"
 	"github.com/VaheMuradyan/Live2/generator"
 )
 
 type PriceService struct {
-	repo      *repositories.PriceRepository
+	repo      *PriceRepository
 	generator *generator.Generator
 }
 
-func NewPriceService(repo *repositories.PriceRepository, generator *generator.Generator) *PriceService {
+func NewPriceService(repo *PriceRepository, generator *generator.Generator) *PriceService {
 	return &PriceService{
 		repo:      repo,
 		generator: generator,

@@ -1,8 +1,11 @@
-package generator
+package markets
 
-import "math/rand"
+import (
+	"github.com/VaheMuradyan/Live2/db/models"
+	"math/rand"
+)
 
-func (g *Generator) calculateOverUnderCoefficient(priceCode string, score ScoreSnapshot) float64 {
+func CalculateOverUnderCoefficient(priceCode string, score models.ScoreSnapshot) float64 {
 	currentTotal := float64(score.Total)
 
 	switch priceCode {

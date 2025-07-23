@@ -1,17 +1,16 @@
-package handlers
+package prices
 
 import (
-	"github.com/VaheMuradyan/Live2/api/services"
 	"github.com/VaheMuradyan/Live2/db/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
 type PriceHandler struct {
-	service *services.PriceService
+	service *PriceService
 }
 
-func NewHandler(service *services.PriceService) *PriceHandler {
+func NewHandler(service *PriceService) *PriceHandler {
 	return &PriceHandler{service: service}
 }
 

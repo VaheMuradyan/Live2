@@ -1,4 +1,4 @@
-package repositories
+package prices
 
 import (
 	"github.com/VaheMuradyan/Live2/db/models"

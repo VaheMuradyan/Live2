@@ -1,10 +1,12 @@
-package generator
+package markets
 
 import (
+	"github.com/VaheMuradyan/Live2/db/models"
+
 	"math/rand"
 )
 
-func (g *Generator) calculate1x2Coefficient(priceCode string, score ScoreSnapshot) float64 {
+func Calculate1x2Coefficient(priceCode string, score models.ScoreSnapshot) float64 {
 	scoreDiff := score.Team1Score - score.Team2Score
 
 	switch priceCode {

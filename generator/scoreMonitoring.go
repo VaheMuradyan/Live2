@@ -2,10 +2,9 @@ package generator
 
 import (
 	"github.com/VaheMuradyan/Live2/db/models"
+	"github.com/VaheMuradyan/Live2/generator/markets"
 	"gorm.io/gorm"
 	"log"
-	"math/rand"
-	"sync"
 	"time"
 )
 
@@ -55,7 +54,7 @@ func (g *Generator) checkScoreUpdate() {
 			continue
 		}
 
-		currentScore := ScoreSnapshot{
+		currentScore := models.ScoreSnapshot{
 			EventID:    event.ID,
 			Team1Score: event.Score.Team1Score,
 			Team2Score: event.Score.Team2Score,
@@ -69,18 +68,18 @@ func (g *Generator) checkScoreUpdate() {
 	}
 }
 
-func (g *Generator) scoreHasChanged(previous, current ScoreSnapshot) bool {
+func (g *Generator) scoreHasChanged(previous, current models.ScoreSnapshot) bool {
 	return previous.Team1Score != current.Team1Score ||
 		previous.Team2Score != current.Team2Score ||
 		previous.Total != current.Total
 }
 
-func (g *Generator) handleScoreChange(event models.Event, currentScore ScoreSnapshot) {
+func (g *Generator) handleScoreChange(event models.Event, currentScore models.ScoreSnapshot) {
 	g.checkAndStopMarkets(event, currentScore)
 	g.sendActiveCoefficients(event, currentScore)
 }
 
-func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot ScoreSnapshot) {
+func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models.ScoreSnapshot) {
 	eventID := event.ID
 	totalGoals := scoreSnapshot.Total
 
@@ -143,7 +142,7 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot ScoreS
 	}
 }
 
-func (g *Generator) sendActiveCoefficients(event models.Event, scoreSnapshot ScoreSnapshot) {
+func (g *Generator) sendActiveCoefficients(event models.Event, scoreSnapshot models.ScoreSnapshot) {
 	eventID := event.ID
 
 	var coefficients []models.Coefficient
@@ -176,82 +175,25 @@ func (g *Generator) sendActiveCoefficients(event models.Event, scoreSnapshot Sco
 	}
 }
 
-func (g *Generator) startEventsSimulation() {
-	var scores []models.Score
-	if err := g.db.Joins("Event").Where("Event.active = ?", true).Find(&scores).Error; err != nil {
-		log.Fatal(err)
-	}
-
-	num := len(scores)
-	stopChan := make(chan bool, num)
-
-	var wg sync.WaitGroup
-	wg.Add(num)
-
-	for _, score := range scores {
-		go g.startEvent(score, stopChan, &wg)
-	}
-
-	time.Sleep(55 * time.Second)
-	for i := 0; i < num; i++ {
-		stopChan <- true
-	}
-	g.stopChan <- true
-
-	wg.Wait()
-}
-
-func (g *Generator) startEvent(score models.Score, stopChan <-chan bool, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-stopChan:
-			return
-		case <-ticker.C:
-			rand.Seed(time.Now().UnixNano())
-			x := rand.Intn(2)
-
-			switch x {
-			case 0:
-				score.Team1Score++
-				score.Total++
-			case 1:
-				score.Team2Score++
-				score.Total++
-			}
-
-			err := g.db.Save(&score).Error
-			if err != nil {
-				return
-			}
-
-		}
-	}
-}
-
-func (g *Generator) calculateNewCoefficient(coefficient models.Coefficient, score ScoreSnapshot) float64 {
+func (g *Generator) calculateNewCoefficient(coefficient models.Coefficient, score models.ScoreSnapshot) float64 {
 	market := coefficient.Price.Market
 	price := coefficient.Price
 
 	switch market.Code {
 	case "1X2":
-		return g.calculate1x2Coefficient(price.Code, score)
+		return markets.Calculate1x2Coefficient(price.Code, score)
 	case "OU5":
-		return g.calculateOverUnderCoefficient(price.Code, score)
+		return markets.CalculateOverUnderCoefficient(price.Code, score)
 	case "OU15":
-		return g.calculateOverUnderCoefficient(price.Code, score)
+		return markets.CalculateOverUnderCoefficient(price.Code, score)
 	case "OU25":
-		return g.calculateOverUnderCoefficient(price.Code, score)
+		return markets.CalculateOverUnderCoefficient(price.Code, score)
 	case "OU35":
-		return g.calculateOverUnderCoefficient(price.Code, score)
+		return markets.CalculateOverUnderCoefficient(price.Code, score)
 	case "OU45":
-		return g.calculateOverUnderCoefficient(price.Code, score)
+		return markets.CalculateOverUnderCoefficient(price.Code, score)
 	case "BTTS":
-		return g.calculateBTTSCoefficient(price.Code, score)
+		return markets.CalculateBTTSCoefficient(price.Code, score)
 	}
 	return 0
 }

@@ -1,8 +1,11 @@
-package generator
+package markets
 
-import "math/rand"
+import (
+	"github.com/VaheMuradyan/Live2/db/models"
+	"math/rand"
+)
 
-func (gen *Generator) calculateBTTSCoefficient(priceCode string, score ScoreSnapshot) float64 {
+func CalculateBTTSCoefficient(priceCode string, score models.ScoreSnapshot) float64 {
 	bothTeamsScored := score.Team1Score > 0 && score.Team2Score > 0
 
 	switch priceCode {
