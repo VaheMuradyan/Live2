@@ -46,9 +46,6 @@ func (g *Generator) checkScoreUpdate() {
 		return
 	}
 
-	g.snapshotMutex.Lock()
-	defer g.snapshotMutex.Unlock()
-
 	for _, event := range events {
 		if event.Score == nil {
 			continue
@@ -61,17 +58,21 @@ func (g *Generator) checkScoreUpdate() {
 			Total:      event.Score.Total,
 		}
 
-		if previousScore, exists := g.scoreSnapshots[event.ID]; !exists || g.scoreHasChanged(previousScore, currentScore) {
+		if prev, exists := g.scoreSnapshots.Load(event.ID); !exists {
 			g.handleScoreChange(event, currentScore)
-			g.scoreSnapshots[event.ID] = currentScore
+			g.scoreSnapshots.Store(event.ID, currentScore)
+		} else {
+			previousScore := prev.(models.ScoreSnapshot)
+			if g.scoreHasChanged(previousScore, currentScore) {
+				g.handleScoreChange(event, currentScore)
+				g.scoreSnapshots.Store(event.ID, currentScore)
+			}
 		}
 	}
 }
 
 func (g *Generator) scoreHasChanged(previous, current models.ScoreSnapshot) bool {
-	return previous.Team1Score != current.Team1Score ||
-		previous.Team2Score != current.Team2Score ||
-		previous.Total != current.Total
+	return previous.Team1Score != current.Team1Score || previous.Team2Score != current.Team2Score
 }
 
 func (g *Generator) handleScoreChange(event models.Event, currentScore models.ScoreSnapshot) {
@@ -136,7 +137,7 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 		Update("active", false)
 
 	if result.Error != nil {
-		log.Printf("Error deactivating coefficients for event %d: %v", eventID, result.Error)
+		log.Fatalf("Error deactivating coefficients for event %d: %v", eventID, result.Error)
 	} else {
 		log.Printf("Successfully deactivated %d coefficients for event %d", result.RowsAffected, eventID)
 	}
@@ -160,18 +161,16 @@ func (g *Generator) sendActiveCoefficients(event models.Event, scoreSnapshot mod
 	for _, coefficient := range coefficients {
 		newCoeff := g.calculateNewCoefficient(coefficient, scoreSnapshot)
 
-		if newCoeff > 0 {
-			coefficient.Coefficient = newCoeff
+		coefficient.Coefficient = newCoeff
 
-			if err = g.db.Save(&coefficient).Error; err != nil {
-				continue
-			}
-
-			if err = g.client.SendToCentrifugo(coefficient); err != nil {
-				continue
-			}
-
+		if err = g.db.Save(&coefficient).Error; err != nil {
+			continue
 		}
+
+		if err = g.client.SendToCentrifugo(coefficient); err != nil {
+			continue
+		}
+
 	}
 }
 

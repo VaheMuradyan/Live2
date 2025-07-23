@@ -2,7 +2,6 @@ package generator
 
 import (
 	"github.com/VaheMuradyan/Live2/centrifugoClient"
-	"github.com/VaheMuradyan/Live2/db/models"
 	"gorm.io/gorm"
 	"sync"
 )
@@ -10,8 +9,7 @@ import (
 type Generator struct {
 	db             *gorm.DB
 	client         *centrifugoClient.CentrifugoClient
-	scoreSnapshots map[uint]models.ScoreSnapshot
-	snapshotMutex  sync.RWMutex
+	scoreSnapshots sync.Map
 	stopChan       chan bool
 }
 
@@ -19,7 +17,7 @@ func NewGenerator(client *centrifugoClient.CentrifugoClient, db *gorm.DB) *Gener
 	return &Generator{
 		db:             db,
 		client:         client,
-		scoreSnapshots: make(map[uint]models.ScoreSnapshot),
+		scoreSnapshots: sync.Map{},
 		stopChan:       make(chan bool),
 	}
 }
