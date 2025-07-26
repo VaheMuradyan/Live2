@@ -92,20 +92,16 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 
 	priceCodesToDeactivate := []string{}
 
-	if totalGoals >= 1 {
-		priceCodesToDeactivate = append(priceCodesToDeactivate, "U5", "O5")
-	}
-	if totalGoals >= 2 {
-		priceCodesToDeactivate = append(priceCodesToDeactivate, "U15", "O15")
-	}
-	if totalGoals >= 3 {
-		priceCodesToDeactivate = append(priceCodesToDeactivate, "U25", "O25")
-	}
-	if totalGoals >= 4 {
-		priceCodesToDeactivate = append(priceCodesToDeactivate, "U35", "O35")
-	}
 	if totalGoals >= 5 {
 		priceCodesToDeactivate = append(priceCodesToDeactivate, "U45", "O45")
+	} else if totalGoals >= 4 {
+		priceCodesToDeactivate = append(priceCodesToDeactivate, "U35", "O35")
+	} else if totalGoals >= 3 {
+		priceCodesToDeactivate = append(priceCodesToDeactivate, "U25", "O25")
+	} else if totalGoals >= 2 {
+		priceCodesToDeactivate = append(priceCodesToDeactivate, "U15", "O15")
+	} else if totalGoals >= 1 {
+		priceCodesToDeactivate = append(priceCodesToDeactivate, "U5", "O5")
 	}
 
 	if scoreSnapshot.Team1Score > 0 && scoreSnapshot.Team2Score > 0 {
@@ -117,6 +113,7 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 	}
 
 	var coeffIDsToDeactivate []uint
+
 	err = g.db.Model(&models.Coefficient{}).
 		Joins("JOIN prices ON coefficients.price_id = prices.id").
 		Where("coefficients.event_id = ? AND prices.code IN ? AND coefficients.active = ?",
@@ -125,10 +122,6 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 		Find(&coeffIDsToDeactivate).Error
 
 	if err != nil {
-		return
-	}
-
-	if len(coeffIDsToDeactivate) == 0 {
 		return
 	}
 
@@ -148,6 +141,11 @@ func (g *Generator) sendActiveCoefficients(event models.Event, scoreSnapshot mod
 
 	var coefficients []models.Coefficient
 	err := g.db.Preload("Price").Preload("Price.Market").
+		Preload("Price.Market.MarketCollection").
+		Preload("Event").
+		Preload("Event.Competition").
+		Preload("Event.Competition.Country").
+		Preload("Event.Competition.Country.Sport").
 		Joins("JOIN prices ON coefficients.price_id = prices.id").
 		Joins("JOIN markets ON prices.market_id = markets.id").
 		Where("coefficients.event_id = ? AND coefficients.active = ? AND markets.active = ? AND prices.active = ?",
@@ -181,18 +179,11 @@ func (g *Generator) calculateNewCoefficient(coefficient models.Coefficient, scor
 	switch market.Code {
 	case "1X2":
 		return markets.Calculate1x2Coefficient(price.Code, score)
-	case "OU5":
-		return markets.CalculateOverUnderCoefficient(price.Code, score)
-	case "OU15":
-		return markets.CalculateOverUnderCoefficient(price.Code, score)
-	case "OU25":
-		return markets.CalculateOverUnderCoefficient(price.Code, score)
-	case "OU35":
-		return markets.CalculateOverUnderCoefficient(price.Code, score)
-	case "OU45":
-		return markets.CalculateOverUnderCoefficient(price.Code, score)
 	case "BTTS":
 		return markets.CalculateBTTSCoefficient(price.Code, score)
+	default:
+		return markets.CalculateOverUnderCoefficient(price.Code, score)
 	}
+
 	return 0
 }

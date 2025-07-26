@@ -54,20 +54,10 @@ func (s *CentrifugoClient) Close() {
 }
 
 func (s *CentrifugoClient) SendToCentrifugo(coefficient models.Coefficient) error {
-	var fullCoeff models.Coefficient
-
-	err := s.db.Preload("Event.Competition.Country.Sport").
-		Preload("Price.Market.MarketCollection").
-		First(&fullCoeff, coefficient.ID).Error
-
-	if err != nil {
-		return err
-	}
-
-	price := fullCoeff.Price
+	price := coefficient.Price
 	market := price.Market
 	marketCollection := market.MarketCollection
-	event := fullCoeff.Event
+	event := coefficient.Event
 	competition := event.Competition
 	country := competition.Country
 	sport := country.Sport
