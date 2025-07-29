@@ -46,6 +46,7 @@ type MarketCollection struct {
 	Name    string   `gorm:"unique"`
 	Code    string   `gorm:"unique"`
 	Markets []Market `gorm:"foreignKey:MarketCollectionID"`
+	Events  []Event  `gorm:"many2many:event_market_collections;"`
 }
 
 type Market struct {
@@ -63,16 +64,16 @@ type Price struct {
 	Name        string `gorm:"unique"`
 	Code        string `gorm:"unique"`
 	MarketID    uint
-	Market      Market        `gorm:"foreignKey:MarketID"`
-	Coefficient []Coefficient `gorm:"foreignKey:PriceID"`
-	Active      bool          `gorm:"default:true"`
+	Market      Market       `gorm:"foreignKey:MarketID"`
+	EventPrices []EventPrice `gorm:"foreignKey:PriceID"`
+	Active      bool         `gorm:"default:true"`
 }
 
-type Coefficient struct {
+type EventPrice struct {
 	gorm.Model
-	EventID     uint
-	Event       Event `gorm:"foreignKey:EventID"`
-	PriceID     uint
+	EventID     uint    `gorm:"index"`
+	Event       Event   `gorm:"foreignKey:EventID"`
+	PriceID     uint    `gorm:"index"`
 	Price       Price   `gorm:"foreignKey:PriceID"`
 	Coefficient float64 `gorm:"type:decimal(9,4);"`
 	Active      bool    `gorm:"default:true"`
@@ -80,14 +81,15 @@ type Coefficient struct {
 
 type Event struct {
 	gorm.Model
-	Name          string
-	CompetitionID uint
-	Competition   Competition   `gorm:"foreignKey:CompetitionID"`
-	Teams         []Team        `gorm:"many2many:event_teams;"`
-	Coefficients  []Coefficient `gorm:"foreignKey:EventID"`
-	Score         *Score        `gorm:"foreignKey:EventID"`
-	Active        bool          `gorm:"default:false"`
-	Code          string        `gorm:"unique"`
+	Name              string
+	CompetitionID     uint
+	Competition       Competition        `gorm:"foreignKey:CompetitionID"`
+	Teams             []Team             `gorm:"many2many:event_teams;"`
+	MarketCollections []MarketCollection `gorm:"many2many:event_market_collections;"`
+	EventPrices       []EventPrice       `gorm:"foreignKey:EventID"`
+	Score             *Score             `gorm:"foreignKey:EventID"`
+	Active            bool               `gorm:"default:false"`
+	Code              string             `gorm:"unique"`
 }
 
 type Score struct {

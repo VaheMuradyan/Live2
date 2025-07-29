@@ -47,7 +47,7 @@ func (p *PriceRepository) ActivateMarkets(markets []string) error {
 }
 
 func (p *PriceRepository) ActivateCoefficients() error {
-	if err := p.db.Model(&models.Coefficient{}).Where("1 = 1").Update("active", true).Error; err != nil {
+	if err := p.db.Model(&models.EventPrice{}).Where("1 = 1").Update("active", true).Error; err != nil {
 		return err
 	}
 	return nil

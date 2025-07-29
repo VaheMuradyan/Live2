@@ -30,16 +30,16 @@ func (g *Generator) checkScoreUpdate() {
 		Joins("Competition.Country.Sport").
 		Preload("Score").
 		Preload("Teams").
-		Preload("Coefficients", func(db *gorm.DB) *gorm.DB {
-			return db.Where("coefficients.active = ?", true)
+		Preload("EventPrices", func(db *gorm.DB) *gorm.DB {
+			return db.Where("event_prices.active = ?", true)
 		}).
-		Preload("Coefficients.Price", func(db *gorm.DB) *gorm.DB {
+		Preload("EventPrices.Price", func(db *gorm.DB) *gorm.DB {
 			return db.Where("prices.active = ?", true)
 		}).
-		Preload("Coefficients.Price.Market", func(db *gorm.DB) *gorm.DB {
+		Preload("EventPrices.Price.Market", func(db *gorm.DB) *gorm.DB {
 			return db.Where("markets.active = ?", true)
 		}).
-		Preload("Coefficients.Price.Market.MarketCollection").
+		Preload("EventPrices.Price.Market.MarketCollection").
 		Find(&events).Error
 
 	if err != nil {
@@ -84,12 +84,6 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 	eventID := event.ID
 	totalGoals := scoreSnapshot.Total
 
-	var allCoeffs []models.Coefficient
-	err := g.db.Preload("Price").Where("event_id = ?", eventID).Find(&allCoeffs).Error
-	if err != nil {
-		return
-	}
-
 	priceCodesToDeactivate := []string{}
 
 	if totalGoals >= 5 {
@@ -112,69 +106,54 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 		return
 	}
 
-	var coeffIDsToDeactivate []uint
-
-	err = g.db.Model(&models.Coefficient{}).
-		Joins("JOIN prices ON coefficients.price_id = prices.id").
-		Where("coefficients.event_id = ? AND prices.code IN ? AND coefficients.active = ?",
-			eventID, priceCodesToDeactivate, true).
-		Select("coefficients.id").
-		Find(&coeffIDsToDeactivate).Error
-
-	if err != nil {
-		return
-	}
-
-	result := g.db.Model(&models.Coefficient{}).
-		Where("id IN (?)", coeffIDsToDeactivate).
+	result := g.db.Model(&models.EventPrice{}).
+		Where("event_id = ? AND active = ? AND price_id IN (?)",
+			eventID,
+			true,
+			g.db.Model(&models.Price{}).Select("id").Where("code IN ?", priceCodesToDeactivate)).
 		Update("active", false)
 
 	if result.Error != nil {
-		log.Fatalf("Error deactivating coefficients for event %d: %v", eventID, result.Error)
+		log.Fatalf("Error deactivating event prices for event %d: %v", eventID, result.Error)
 	} else {
-		log.Printf("Successfully deactivated %d coefficients for event %d", result.RowsAffected, eventID)
+		log.Printf("Successfully deactivated %d event prices for event %d", result.RowsAffected, eventID)
 	}
 }
 
 func (g *Generator) sendActiveCoefficients(event models.Event, scoreSnapshot models.ScoreSnapshot) {
 	eventID := event.ID
 
-	var coefficients []models.Coefficient
+	var eventPrices []models.EventPrice
 	err := g.db.Preload("Price").Preload("Price.Market").
 		Preload("Price.Market.MarketCollection").
 		Preload("Event").
 		Preload("Event.Competition").
 		Preload("Event.Competition.Country").
 		Preload("Event.Competition.Country.Sport").
-		Joins("JOIN prices ON coefficients.price_id = prices.id").
+		Joins("JOIN prices ON event_prices.price_id = prices.id").
 		Joins("JOIN markets ON prices.market_id = markets.id").
-		Where("coefficients.event_id = ? AND coefficients.active = ? AND markets.active = ? AND prices.active = ?",
+		Where("event_prices.event_id = ? AND event_prices.active = ? AND markets.active = ? AND prices.active = ?",
 			eventID, true, true, true).
-		Find(&coefficients).Error
+		Find(&eventPrices).Error
 
 	if err != nil {
 		return
 	}
 
-	for _, coefficient := range coefficients {
-		newCoeff := g.calculateNewCoefficient(coefficient, scoreSnapshot)
+	for _, eventPrice := range eventPrices {
+		newCoeff := g.calculateNewCoefficient(eventPrice, scoreSnapshot)
 
-		coefficient.Coefficient = newCoeff
+		eventPrice.Coefficient = newCoeff
 
-		if err = g.db.Save(&coefficient).Error; err != nil {
+		if err = g.client.SendToCentrifugo(eventPrice); err != nil {
 			continue
 		}
-
-		if err = g.client.SendToCentrifugo(coefficient); err != nil {
-			continue
-		}
-
 	}
 }
 
-func (g *Generator) calculateNewCoefficient(coefficient models.Coefficient, score models.ScoreSnapshot) float64 {
-	market := coefficient.Price.Market
-	price := coefficient.Price
+func (g *Generator) calculateNewCoefficient(eventPrice models.EventPrice, score models.ScoreSnapshot) float64 {
+	market := eventPrice.Price.Market
+	price := eventPrice.Price
 
 	switch market.Code {
 	case "1X2":
@@ -184,6 +163,4 @@ func (g *Generator) calculateNewCoefficient(coefficient models.Coefficient, scor
 	default:
 		return markets.CalculateOverUnderCoefficient(price.Code, score)
 	}
-
-	return 0
 }

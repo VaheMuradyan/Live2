@@ -53,11 +53,11 @@ func (s *CentrifugoClient) Close() {
 	s.cfConn.Close()
 }
 
-func (s *CentrifugoClient) SendToCentrifugo(coefficient models.Coefficient) error {
-	price := coefficient.Price
+func (s *CentrifugoClient) SendToCentrifugo(eventPrice models.EventPrice) error {
+	price := eventPrice.Price
 	market := price.Market
 	marketCollection := market.MarketCollection
-	event := coefficient.Event
+	event := eventPrice.Event
 	competition := event.Competition
 	country := competition.Country
 	sport := country.Sport
@@ -70,11 +70,11 @@ func (s *CentrifugoClient) SendToCentrifugo(coefficient models.Coefficient) erro
 		"market":                 market.Code,
 		"market_collection_code": marketCollection.Code,
 		"price":                  price.Name,
-		"new_coefficient":        coefficient.Coefficient,
+		"new_coefficient":        eventPrice.Coefficient,
 		"old_coefficient":        float64(5),
 		"timestamp":              time.Now().Format(time.RFC3339),
-		"coefficient_id":         coefficient.ID,
-		"active":                 coefficient.Active,
+		"coefficient_id":         eventPrice.ID,
+		"active":                 eventPrice.Active,
 	}
 
 	lower := strings.ToLower(event.Name)

@@ -32,7 +32,7 @@ func Connect() *gorm.DB {
 	}
 
 	err = db.AutoMigrate(&models.Sport{}, &models.Country{}, &models.Competition{}, &models.Team{}, &models.Event{},
-		&models.MarketCollection{}, &models.Market{}, &models.Price{}, &models.Score{}, &models.Coefficient{})
+		&models.MarketCollection{}, &models.Market{}, &models.Price{}, &models.Score{}, &models.EventPrice{})
 	if err != nil {
 		panic(err)
 	}
