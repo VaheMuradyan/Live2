@@ -29,3 +29,13 @@ func (h *PriceHandler) Start(c *gin.Context) {
 
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "successfully activated", "data": req})
 }
+
+func (h *PriceHandler) GetEvenetList(c *gin.Context) {
+	list := h.service.GetEventList()
+	if list == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cant get events list"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": list})
+}

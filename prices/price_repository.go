@@ -52,3 +52,12 @@ func (p *PriceRepository) ActivateCoefficients() error {
 	}
 	return nil
 }
+
+func (p *PriceRepository) GetEventList() []models.Event {
+	var events []models.Event
+	err := p.db.Model(&models.Event{}).Where("active = ?", true).Find(&events).Error
+	if err != nil {
+		return nil
+	}
+	return events
+}

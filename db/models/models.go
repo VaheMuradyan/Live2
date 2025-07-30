@@ -106,6 +106,12 @@ type RequestData struct {
 	MarketCodes []string `json:"market_codes"`
 }
 
+type GetEventListResponse struct {
+	EventID   uint   `json:"event_id"`
+	EventName string `json:"event_name"`
+	EventCode string `json:"event_code"`
+}
+
 type ScoreSnapshot struct {
 	EventID    uint
 	Team1Score int
