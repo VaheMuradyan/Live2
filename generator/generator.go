@@ -26,7 +26,7 @@ func NewGenerator(client *centrifugoClient.CentrifugoClient, db *gorm.DB) *Gener
 }
 
 func (gen *Generator) Start() {
-	gen.cache.RefreshFromDatabase()
+	gen.cache.LoadStaticEventData()
 	go gen.startScoreMonitoring()
 	gen.startEventsSimulation()
 }

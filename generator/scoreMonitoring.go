@@ -24,13 +24,12 @@ func (g *Generator) checkScoreUpdate() {
 	events := g.cache.GetActiveEvents()
 
 	for _, event := range events {
-		//todo stugel es pahy
-		currentScore, exists := g.cache.GetScoreSnapshot(event.ID)
-		if !exists {
+		currentScore, ok := g.cache.GetScoreSnapshot(event.ID)
+		if !ok {
 			continue
 		}
 
-		if prev, exists2 := g.scoreSnapshots.Load(event.ID); !exists2 {
+		if prev, exists := g.scoreSnapshots.Load(event.ID); !exists {
 			g.handleScoreChange(event, currentScore)
 			g.scoreSnapshots.Store(event.ID, currentScore)
 		} else {
@@ -58,7 +57,6 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 
 	priceCodesToDeactivate := []string{}
 
-	// Fix: Use correct if-else chain to deactivate ALL relevant markets
 	if totalGoals >= 5 {
 		priceCodesToDeactivate = append(priceCodesToDeactivate, "U45", "O45")
 	}
@@ -75,7 +73,6 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 		priceCodesToDeactivate = append(priceCodesToDeactivate, "U5", "O5")
 	}
 
-	// BTTS logic
 	if scoreSnapshot.Team1Score > 0 && scoreSnapshot.Team2Score > 0 {
 		priceCodesToDeactivate = append(priceCodesToDeactivate, "BTTS_N", "BTTS_Y")
 	}
@@ -84,36 +81,15 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 		return
 	}
 
-	log.Printf("Deactivating markets for event %d (score %d-%d): %v",
-		eventID, scoreSnapshot.Team1Score, scoreSnapshot.Team2Score, priceCodesToDeactivate)
-
-	// Get price IDs from cache instead of database for better performance
 	priceIDs := g.cache.GetPriceIDsByCodes(priceCodesToDeactivate)
 	if len(priceIDs) == 0 {
 		log.Printf("No price IDs found for codes: %v", priceCodesToDeactivate)
 		return
 	}
 
-	// Update database
-	result := g.db.Model(&models.EventPrice{}).
-		Where("event_id = ? AND active = ? AND price_id IN ?", eventID, true, priceIDs).
-		Update("active", false)
-
-	if result.Error != nil {
-		log.Printf("Error deactivating event prices for event %d: %v", eventID, result.Error)
-		return
-	}
-
-	if result.RowsAffected > 0 {
-		log.Printf("Successfully deactivated %d event prices in database for event %d", result.RowsAffected, eventID)
-
-		// CRITICAL: Update Redis cache to reflect the deactivation
-		err := g.cache.DeactivateEventPrices(eventID, priceIDs)
-		if err != nil {
-			log.Printf("Error deactivating event prices in Redis cache for event %d: %v", eventID, err)
-		} else {
-			log.Printf("Successfully deactivated %d event prices in Redis cache for event %d", len(priceIDs), eventID)
-		}
+	err := g.cache.DeactivateEventPrices(eventID, priceIDs)
+	if err != nil {
+		log.Printf("Error deactivating event prices in Redis cache for event %d: %v", eventID, err)
 	}
 }
 

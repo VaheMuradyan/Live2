@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/VaheMuradyan/Live2/db/models"
 	"github.com/redis/go-redis/v9"
@@ -41,7 +42,6 @@ type EventPriceRedis struct {
 func (r *RedisCache) SetEventPrices(eventID uint, eventPrices []models.EventPrice) error {
 	key := fmt.Sprintf("event_prices:%d", eventID)
 
-	// Store simplified version for Redis
 	simplifiedPrices := make([]EventPriceRedis, len(eventPrices))
 	for i, ep := range eventPrices {
 		simplifiedPrices[i] = EventPriceRedis{
@@ -93,18 +93,17 @@ func (r *RedisCache) GetEventPrices(eventID uint) ([]models.EventPrice, error) {
 	return eventPrices, nil
 }
 
-// ScoreSnapshot operations (REAL-TIME DATA)
 func (r *RedisCache) SetScoreSnapshot(eventID uint, score models.ScoreSnapshot) error {
 	key := fmt.Sprintf("score:%d", eventID)
 
 	data, err := json.Marshal(score)
 	if err != nil {
-		return fmt.Errorf("failed to marshal score snapshot: %w", err)
+		return err
 	}
 
 	err = r.client.Set(r.ctx, key, data, 30*time.Minute).Err()
 	if err != nil {
-		return fmt.Errorf("failed to set score snapshot in Redis: %w", err)
+		return err
 	}
 
 	return nil
@@ -121,7 +120,7 @@ func (r *RedisCache) GetScoreSnapshot(eventID uint) (models.ScoreSnapshot, error
 	var score models.ScoreSnapshot
 	err = json.Unmarshal([]byte(data), &score)
 	if err != nil {
-		return models.ScoreSnapshot{}, fmt.Errorf("failed to unmarshal score snapshot: %w", err)
+		return models.ScoreSnapshot{}, err
 	}
 
 	return score, nil
@@ -157,18 +156,18 @@ func (r *RedisCache) GetAllScoreSnapshots(eventIDs []uint) (map[uint]models.Scor
 	}
 
 	_, err := pipe.Exec(r.ctx)
-	if err != nil && err != redis.Nil {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return nil, fmt.Errorf("failed to execute pipeline: %w", err)
 	}
 
 	result := make(map[uint]models.ScoreSnapshot)
 	for i, cmd := range cmds {
-		if cmd.Err() == redis.Nil || cmd.Err() != nil {
+		if errors.Is(cmd.Err(), redis.Nil) || cmd.Err() != nil {
 			continue
 		}
 
 		var score models.ScoreSnapshot
-		err := json.Unmarshal([]byte(cmd.Val()), &score)
+		err = json.Unmarshal([]byte(cmd.Val()), &score)
 		if err == nil {
 			result[eventIDs[i]] = score
 		}

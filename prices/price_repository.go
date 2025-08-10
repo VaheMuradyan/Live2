@@ -23,6 +23,7 @@ func (p *PriceRepository) ActivateEvents(events []string) error {
 		return err
 	}
 
+	//todo hanel subquery-n
 	if err := p.db.Model(&models.Score{}).
 		Where("event_id IN (?)",
 			p.db.Model(&models.Event{}).Select("id").Where("code IN ? AND active = ?", events, true)).
@@ -44,13 +45,6 @@ func (p *PriceRepository) ActivateMarkets(markets []string) error {
 	err := p.db.Model(&models.Market{}).Where("code IN ?", markets).
 		Update("active", true).Error
 	return err
-}
-
-func (p *PriceRepository) ActivateCoefficients() error {
-	if err := p.db.Model(&models.EventPrice{}).Where("1 = 1").Update("active", true).Error; err != nil {
-		return err
-	}
-	return nil
 }
 
 func (p *PriceRepository) GetEventList() []models.Event {
