@@ -3,17 +3,13 @@ package generator
 import (
 	"fmt"
 	"github.com/VaheMuradyan/Live2/db/models"
-	"log"
 	"math/rand"
 	"sync"
 	"time"
 )
 
 func (g *Generator) startEventsSimulation() {
-	var scores []models.Score
-	if err := g.db.Joins("Event").Where("Event.active = ?", true).Find(&scores).Error; err != nil {
-		log.Fatal(err)
-	}
+	scores := g.cache.GetAllScoreSnapshotsForSimulation()
 
 	num := len(scores)
 	stopChan := make(chan bool, num)
@@ -34,7 +30,7 @@ func (g *Generator) startEventsSimulation() {
 	wg.Wait()
 }
 
-func (g *Generator) startEvent(score models.Score, stopChan <-chan bool, wg *sync.WaitGroup) {
+func (g *Generator) startEvent(scoreSnapshot models.ScoreSnapshot, stopChan <-chan bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -51,18 +47,14 @@ func (g *Generator) startEvent(score models.Score, stopChan <-chan bool, wg *syn
 
 			switch x {
 			case 0:
-				score.Team1Score++
-				score.Total++
+				scoreSnapshot.Team1Score++
+				scoreSnapshot.Total++
 			case 1:
-				score.Team2Score++
-				score.Total++
+				scoreSnapshot.Team2Score++
+				scoreSnapshot.Total++
 			}
 
-			err := g.db.Save(&score).Error
-			if err != nil {
-				return
-			}
-
+			g.cache.UpdateScoreSnapshot(scoreSnapshot.EventID, scoreSnapshot)
 		}
 	}
 }
