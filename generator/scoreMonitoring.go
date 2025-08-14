@@ -13,6 +13,7 @@ func (g *Generator) startScoreMonitoring() {
 	for {
 		select {
 		case <-g.stopChan:
+			g.cache.SaveData()
 			return
 		case <-ticker.C:
 			g.checkScoreUpdate()

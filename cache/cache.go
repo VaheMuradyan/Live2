@@ -294,3 +294,12 @@ func (c *Cache) GetAllScoreSnapshotsForSimulation() []models.ScoreSnapshot {
 
 	return scores
 }
+
+func (c *Cache) SaveData() {
+	events := c.GetActiveEvents()
+
+	for _, event := range events {
+		evPrices := c.GetEventPrices(event.ID)
+		c.db.Save(evPrices)
+	}
+}

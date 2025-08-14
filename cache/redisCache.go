@@ -55,12 +55,12 @@ func (r *RedisCache) SetEventPrices(eventID uint, eventPrices []models.EventPric
 
 	data, err := json.Marshal(simplifiedPrices)
 	if err != nil {
-		return fmt.Errorf("failed to marshal event prices: %w", err)
+		return err
 	}
 
 	err = r.client.Set(r.ctx, key, data, 30*time.Minute).Err()
 	if err != nil {
-		return fmt.Errorf("failed to set event prices in Redis: %w", err)
+		return err
 	}
 
 	return nil
@@ -76,7 +76,7 @@ func (r *RedisCache) GetEventPrices(eventID uint) ([]models.EventPrice, error) {
 	var simplifiedPrices []EventPriceRedis
 	err = json.Unmarshal([]byte(data), &simplifiedPrices)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal event prices: %w", err)
+		return nil, err
 	}
 
 	eventPrices := make([]models.EventPrice, len(simplifiedPrices))
@@ -157,7 +157,7 @@ func (r *RedisCache) GetAllScoreSnapshots(eventIDs []uint) (map[uint]models.Scor
 
 	_, err := pipe.Exec(r.ctx)
 	if err != nil && !errors.Is(err, redis.Nil) {
-		return nil, fmt.Errorf("failed to execute pipeline: %w", err)
+		return nil, err
 	}
 
 	result := make(map[uint]models.ScoreSnapshot)

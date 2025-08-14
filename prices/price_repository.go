@@ -23,18 +23,6 @@ func (p *PriceRepository) ActivateEvents(events []string) error {
 		return err
 	}
 
-	//todo hanel subquery-n
-	if err := p.db.Model(&models.Score{}).
-		Where("event_id IN (?)",
-			p.db.Model(&models.Event{}).Select("id").Where("code IN ? AND active = ?", events, true)).
-		Updates(map[string]interface{}{
-			"team1_score": 0,
-			"team2_score": 0,
-			"total":       0,
-		}).Error; err != nil {
-		return err
-	}
-
 	return nil
 }
 
