@@ -1,0 +1,6 @@
+.dockerignore
+centrifugo.json
+docker-compose.yml
+Dockerfile
+Makefile
+initsql

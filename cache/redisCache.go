@@ -7,6 +7,8 @@ import (
 	"github.com/VaheMuradyan/Live2/db/models"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
+	"log"
+	"os"
 	"time"
 )
 
@@ -16,9 +18,21 @@ type RedisCache struct {
 }
 
 func NewRedisCache() *RedisCache {
+	redisHost := os.Getenv("REDIS_HOST")
+	if redisHost == "" {
+		redisHost = "localhost"
+	}
+
+	redisPort := os.Getenv("REDIS_PORT")
+	if redisPort == "" {
+		redisPort = "6379"
+	}
+
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
+		Addr:     redisAddr,
+		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
 
@@ -54,11 +68,13 @@ func (r *RedisCache) SetEventPrices(eventID uint, eventPrices []models.EventPric
 
 	data, err := json.Marshal(simplifiedPrices)
 	if err != nil {
+		log.Fatal("Chexav demid")
 		return err
 	}
 
 	err = r.client.Set(r.ctx, key, data, 5*time.Minute).Err()
 	if err != nil {
+		log.Fatal("Chexav")
 		return err
 	}
 

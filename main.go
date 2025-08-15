@@ -7,6 +7,7 @@ import (
 	"github.com/VaheMuradyan/Live2/prices"
 	"github.com/VaheMuradyan/Live2/router"
 	"github.com/gin-gonic/gin"
+	"os"
 )
 
 func main() {
@@ -25,5 +26,10 @@ func main() {
 
 	defer client.Close()
 
-	r.Run(":8080")
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	r.Run(":" + port)
 }

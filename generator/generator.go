@@ -5,6 +5,7 @@ import (
 	"github.com/VaheMuradyan/Live2/centrifugoClient"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"gorm.io/gorm"
+	"os"
 )
 
 type Generator struct {
@@ -17,7 +18,12 @@ type Generator struct {
 }
 
 func NewGenerator(client *centrifugoClient.CentrifugoClient, db *gorm.DB) *Generator {
-	conn, err := amqp.Dial("amqp://localhost:5672")
+	rabbitmqURL := os.Getenv("RABBITMQ_URL")
+	if rabbitmqURL == "" {
+		rabbitmqURL = "amqp://localhost:5672"
+	}
+
+	conn, err := amqp.Dial(rabbitmqURL)
 	if err != nil {
 		panic(err)
 	}

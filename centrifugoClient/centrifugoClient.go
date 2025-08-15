@@ -3,6 +3,7 @@ package centrifugoClient
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	apiproto "github.com/VaheMuradyan/Live2/centrifugo"
 	"github.com/VaheMuradyan/Live2/db/models"
 	"google.golang.org/grpc"
@@ -10,6 +11,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"gorm.io/gorm"
 	"log"
+	"os"
 	"strings"
 	"time"
 )
@@ -27,7 +29,19 @@ type CentrifugoClient struct {
 
 func NewCentrifugoClient(db *gorm.DB) *CentrifugoClient {
 
-	conn, err := grpc.NewClient("localhost:10000", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	centrifugoHost := os.Getenv("CENTRIFUGO_GRPC_HOST")
+	if centrifugoHost == "" {
+		centrifugoHost = "localhost" // значение по умолчанию
+	}
+
+	centrifugoPort := os.Getenv("CENTRIFUGO_GRPC_PORT")
+	if centrifugoPort == "" {
+		centrifugoPort = "10000"
+	}
+
+	grpcAddr := fmt.Sprintf("%s:%s", centrifugoHost, centrifugoPort)
+
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to Centrifugo: %v", err)
 	}

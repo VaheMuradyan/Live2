@@ -108,7 +108,7 @@ func (g *Generator) sendActiveCoefficients(eventID uint, scoreSnapshot models.Sc
 		eventPrice.Coefficient = newCoeff
 
 		if err = g.client.SendToCentrifugo(eventPrice); err != nil {
-			continue
+			log.Fatalf("Chexav centriguon")
 		}
 	}
 }
