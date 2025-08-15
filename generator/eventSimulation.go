@@ -1,8 +1,11 @@
 package generator
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/VaheMuradyan/Live2/db/models"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -33,6 +36,12 @@ func (g *Generator) startEventsSimulation() {
 func (g *Generator) startEvent(scoreSnapshot models.ScoreSnapshot, stopChan <-chan bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	queueName := fmt.Sprintf("queue%v", scoreSnapshot.EventID)
+	_, err := g.channel.QueueDeclare(queueName, true, false, false, false, nil)
+	if err != nil {
+		panic(err)
+	}
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
@@ -54,7 +63,20 @@ func (g *Generator) startEvent(scoreSnapshot models.ScoreSnapshot, stopChan <-ch
 				scoreSnapshot.Total++
 			}
 
-			g.cache.UpdateScoreSnapshot(scoreSnapshot.EventID, scoreSnapshot)
+			body, err := json.Marshal(scoreSnapshot)
+			if err != nil {
+				log.Fatalf("Error marshalling simulation score %v", err)
+			}
+
+			message := amqp.Publishing{
+				ContentType: "application/json",
+				Body:        body,
+			}
+
+			err = g.channel.Publish("", queueName, false, false, message)
+			if err != nil {
+				log.Fatalf("Error publishing simulation score %v", err)
+			}
 		}
 	}
 }

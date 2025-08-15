@@ -3,25 +3,37 @@ package generator
 import (
 	"github.com/VaheMuradyan/Live2/cache"
 	"github.com/VaheMuradyan/Live2/centrifugoClient"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"gorm.io/gorm"
-	"sync"
 )
 
 type Generator struct {
-	db             *gorm.DB
-	client         *centrifugoClient.CentrifugoClient
-	scoreSnapshots sync.Map
-	cache          *cache.Cache
-	stopChan       chan bool
+	db       *gorm.DB
+	client   *centrifugoClient.CentrifugoClient
+	cache    *cache.Cache
+	channel  *amqp.Channel
+	conn     *amqp.Connection
+	stopChan chan bool
 }
 
 func NewGenerator(client *centrifugoClient.CentrifugoClient, db *gorm.DB) *Generator {
+	conn, err := amqp.Dial("amqp://localhost:5672")
+	if err != nil {
+		panic(err)
+	}
+
+	channel, err := conn.Channel()
+	if err != nil {
+		panic(err)
+	}
+
 	return &Generator{
-		db:             db,
-		client:         client,
-		scoreSnapshots: sync.Map{},
-		cache:          cache.NewCache(db),
-		stopChan:       make(chan bool),
+		db:       db,
+		client:   client,
+		cache:    cache.NewCache(db),
+		channel:  channel,
+		conn:     conn,
+		stopChan: make(chan bool),
 	}
 }
 

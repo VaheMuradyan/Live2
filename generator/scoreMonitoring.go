@@ -1,59 +1,54 @@
 package generator
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/VaheMuradyan/Live2/db/models"
 	"github.com/VaheMuradyan/Live2/generator/markets"
 	"log"
-	"time"
 )
 
 func (g *Generator) startScoreMonitoring() {
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-g.stopChan:
-			g.cache.SaveData()
-			return
-		case <-ticker.C:
-			g.checkScoreUpdate()
-		}
-	}
-}
-
-func (g *Generator) checkScoreUpdate() {
 	events := g.cache.GetActiveEvents()
 
 	for _, event := range events {
-		currentScore, ok := g.cache.GetScoreSnapshot(event.ID)
-		if !ok {
-			continue
+		queueName := fmt.Sprintf("queue%v", event.ID)
+
+		_, err := g.channel.QueueDeclare(queueName, true, false, false, false, nil)
+		if err != nil {
+			log.Fatalf("Failed to declare queue %s: %v", queueName, err)
 		}
 
-		if prev, exists := g.scoreSnapshots.Load(event.ID); !exists {
-			g.handleScoreChange(event, currentScore)
-			g.scoreSnapshots.Store(event.ID, currentScore)
-		} else {
-			previousScore := prev.(models.ScoreSnapshot)
-			if g.scoreHasChanged(previousScore, currentScore) {
-				g.handleScoreChange(event, currentScore)
-				g.scoreSnapshots.Store(event.ID, currentScore)
-			}
+		go g.consumeQueue(queueName)
+	}
+
+	<-g.stopChan
+	log.Println("Stopping score monitoring...")
+	g.cache.SaveData()
+}
+
+func (g *Generator) consumeQueue(queueName string) {
+	messages, err := g.channel.Consume(queueName, "", true, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("Failed to consume from %s: %v", queueName, err)
+	}
+
+	for msg := range messages {
+		var score models.ScoreSnapshot
+		if err := json.Unmarshal(msg.Body, &score); err != nil {
+			log.Printf("Invalid message in %s: %v", queueName, err)
+			continue
 		}
+		g.handleScoreChange(score.EventID, score)
 	}
 }
 
-func (g *Generator) scoreHasChanged(previous, current models.ScoreSnapshot) bool {
-	return previous.Team1Score != current.Team1Score || previous.Team2Score != current.Team2Score
+func (g *Generator) handleScoreChange(eventID uint, currentScore models.ScoreSnapshot) {
+	g.checkAndStopMarkets(eventID, currentScore)
+	g.sendActiveCoefficients(eventID, currentScore)
 }
 
-func (g *Generator) handleScoreChange(event models.Event, currentScore models.ScoreSnapshot) {
-	g.checkAndStopMarkets(event, currentScore)
-	g.sendActiveCoefficients(event, currentScore)
-}
-
-func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models.ScoreSnapshot) {
-	eventID := event.ID
+func (g *Generator) checkAndStopMarkets(eventID uint, scoreSnapshot models.ScoreSnapshot) {
 	totalGoals := scoreSnapshot.Total
 
 	priceCodesToDeactivate := []string{}
@@ -94,8 +89,8 @@ func (g *Generator) checkAndStopMarkets(event models.Event, scoreSnapshot models
 	}
 }
 
-func (g *Generator) sendActiveCoefficients(event models.Event, scoreSnapshot models.ScoreSnapshot) {
-	eventPrices := g.cache.GetEventPrices(event.ID)
+func (g *Generator) sendActiveCoefficients(eventID uint, scoreSnapshot models.ScoreSnapshot) {
+	eventPrices := g.cache.GetEventPrices(eventID, true)
 
 	for _, eventPrice := range eventPrices {
 
@@ -105,9 +100,9 @@ func (g *Generator) sendActiveCoefficients(event models.Event, scoreSnapshot mod
 
 		newCoeff := g.calculateNewCoefficient(eventPrice, scoreSnapshot)
 
-		err := g.cache.UpdateEventPriceCoefficient(event.ID, eventPrice.PriceID, newCoeff)
+		err := g.cache.UpdateEventPriceCoefficient(eventID, eventPrice.PriceID, newCoeff)
 		if err != nil {
-			log.Printf("Error updating event price coefficient for event %d: %v", event.ID, err)
+			log.Printf("Error updating event price coefficient for event %d: %v", eventID, err)
 		}
 
 		eventPrice.Coefficient = newCoeff

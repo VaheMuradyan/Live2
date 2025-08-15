@@ -87,18 +87,8 @@ type Event struct {
 	Teams             []Team             `gorm:"many2many:event_teams;"`
 	MarketCollections []MarketCollection `gorm:"many2many:event_market_collections;"`
 	EventPrices       []EventPrice       `gorm:"foreignKey:EventID"`
-	Score             *Score             `gorm:"foreignKey:EventID"`
 	Active            bool               `gorm:"default:false"`
 	Code              string             `gorm:"unique"`
-}
-
-type Score struct {
-	ID         uint `gorm:"primaryKey;autoIncrement"`
-	EventID    uint
-	Event      Event `gorm:"foreignKey:EventID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	Team1Score int
-	Team2Score int
-	Total      int
 }
 
 type RequestData struct {

@@ -22,7 +22,7 @@ type StaticEventData struct {
 	CompetitionName string
 	CountryName     string
 	SportName       string
-	PriceRelations  map[uint]PriceRelation // priceID -> relation data
+	PriceRelations  map[uint]PriceRelation
 }
 
 type PriceRelation struct {
@@ -102,7 +102,6 @@ func (c *Cache) loadPriceRelations() {
 	}
 
 	eventPricesMap := make(map[uint][]models.EventPrice)
-	scoreSnapshotsMap := make(map[uint]models.ScoreSnapshot)
 
 	for _, ep := range eventPrices {
 		if staticData, exists := c.staticLookup[ep.EventID]; exists {
@@ -118,17 +117,6 @@ func (c *Cache) loadPriceRelations() {
 			c.staticLookup[ep.EventID] = staticData
 		}
 		eventPricesMap[ep.EventID] = append(eventPricesMap[ep.EventID], ep)
-		scoreSnapshotsMap[ep.EventID] = models.ScoreSnapshot{
-			EventID:    ep.EventID,
-			Team1Score: 0,
-			Team2Score: 0,
-			Total:      0,
-		}
-	}
-
-	err = c.redis.SetAllScoreSnapshots(scoreSnapshotsMap)
-	if err != nil {
-		log.Printf("Error setting score snapshots in Redis: %v", err)
 	}
 
 	for eventID, prices := range eventPricesMap {
@@ -139,7 +127,6 @@ func (c *Cache) loadPriceRelations() {
 	}
 }
 
-// todo getter-i vaxt arji RLock RUnlock ogtagorcel te che
 func (c *Cache) GetActiveEvents() []models.Event {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -151,14 +138,14 @@ func (c *Cache) GetActiveEvents() []models.Event {
 	return events
 }
 
-func (c *Cache) GetEventPrices(eventID uint) []models.EventPrice {
+func (c *Cache) GetEventPrices(eventID uint, forCentrifugo bool) []models.EventPrice {
 	eventPrices, err := c.redis.GetEventPrices(eventID)
 	if err != nil {
-		log.Printf("Error getting event prices from Redis for event %d: %v", eventID, err)
 		return []models.EventPrice{}
 	}
-
-	c.enrichEventPricesForCentrifugo(eventPrices, eventID)
+	if forCentrifugo {
+		c.enrichEventPricesForCentrifugo(eventPrices, eventID)
+	}
 
 	return eventPrices
 }
@@ -258,39 +245,19 @@ func (c *Cache) GetPriceIDsByCodes(codes []string) []uint {
 	return priceIDs
 }
 
-func (c *Cache) GetScoreSnapshot(eventID uint) (models.ScoreSnapshot, bool) {
-	score, err := c.redis.GetScoreSnapshot(eventID)
-	if err != nil {
-		return models.ScoreSnapshot{}, false
-	}
-	return score, true
-}
-
-func (c *Cache) UpdateScoreSnapshot(eventID uint, score models.ScoreSnapshot) {
-	err := c.redis.SetScoreSnapshot(eventID, score)
-	if err != nil {
-		log.Printf("Error updating score snapshot in Redis: %v", err)
-	}
-}
-
 func (c *Cache) GetAllScoreSnapshotsForSimulation() []models.ScoreSnapshot {
 	c.mu.RLock()
-	eventIDs := make([]uint, 0, len(c.eventsMap))
-	for eventID := range c.eventsMap {
-		eventIDs = append(eventIDs, eventID)
+
+	scores := make([]models.ScoreSnapshot, 0, len(c.eventsMap))
+	for id := range c.eventsMap {
+		scores = append(scores, models.ScoreSnapshot{
+			EventID:    id,
+			Team1Score: 0,
+			Team2Score: 0,
+			Total:      0,
+		})
 	}
 	c.mu.RUnlock()
-
-	scoreMap, err := c.redis.GetAllScoreSnapshots(eventIDs)
-	if err != nil {
-		log.Printf("Error getting score snapshots: %v", err)
-		return []models.ScoreSnapshot{}
-	}
-
-	scores := make([]models.ScoreSnapshot, 0, len(scoreMap))
-	for _, score := range scoreMap {
-		scores = append(scores, score)
-	}
 
 	return scores
 }
@@ -299,7 +266,7 @@ func (c *Cache) SaveData() {
 	events := c.GetActiveEvents()
 
 	for _, event := range events {
-		evPrices := c.GetEventPrices(event.ID)
+		evPrices := c.GetEventPrices(event.ID, false)
 		c.db.Save(evPrices)
 	}
 }
