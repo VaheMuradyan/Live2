@@ -68,13 +68,13 @@ func (r *RedisCache) SetEventPrices(eventID uint, eventPrices []models.EventPric
 
 	data, err := json.Marshal(simplifiedPrices)
 	if err != nil {
-		log.Fatal("Chexav demid")
+		log.Printf("Chexav demid")
 		return err
 	}
 
 	err = r.client.Set(r.ctx, key, data, 5*time.Minute).Err()
 	if err != nil {
-		log.Fatal("Chexav")
+		log.Printf("Chexav")
 		return err
 	}
 

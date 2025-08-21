@@ -16,7 +16,7 @@ func (g *Generator) startScoreMonitoring() {
 
 		_, err := g.channel.QueueDeclare(queueName, true, false, false, false, nil)
 		if err != nil {
-			log.Fatalf("Failed to declare queue %s: %v", queueName, err)
+			log.Printf("Failed to declare queue %s: %v", queueName, err)
 		}
 
 		go g.consumeQueue(queueName)
@@ -30,7 +30,7 @@ func (g *Generator) startScoreMonitoring() {
 func (g *Generator) consumeQueue(queueName string) {
 	messages, err := g.channel.Consume(queueName, "", true, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("Failed to consume from %s: %v", queueName, err)
+		log.Printf("Failed to consume from %s: %v", queueName, err)
 	}
 
 	for msg := range messages {
@@ -108,7 +108,7 @@ func (g *Generator) sendActiveCoefficients(eventID uint, scoreSnapshot models.Sc
 		eventPrice.Coefficient = newCoeff
 
 		if err = g.client.SendToCentrifugo(eventPrice); err != nil {
-			log.Fatalf("Chexav centriguon")
+			log.Printf("Chexav centriguon")
 		}
 	}
 }

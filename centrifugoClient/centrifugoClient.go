@@ -43,7 +43,7 @@ func NewCentrifugoClient(db *gorm.DB) *CentrifugoClient {
 
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to connect to Centrifugo: %v", err)
+		log.Printf("Failed to connect to Centrifugo: %v", err)
 	}
 
 	client := apiproto.NewCentrifugoApiClient(conn)

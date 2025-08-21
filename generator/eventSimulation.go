@@ -39,7 +39,11 @@ func (g *Generator) startEvent(scoreSnapshot models.ScoreSnapshot, stopChan <-ch
 	queueName := fmt.Sprintf("queue%v", scoreSnapshot.EventID)
 	_, err := g.channel.QueueDeclare(queueName, true, false, false, false, nil)
 	if err != nil {
-		panic(err)
+		fmt.Printf("failed to declare queue: %v\n", err)
+	}
+
+	if err = g.publishSnapshot(scoreSnapshot, queueName); err != nil {
+		log.Printf("Error publishing initial snapshot: %v", err)
 	}
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -63,20 +67,23 @@ func (g *Generator) startEvent(scoreSnapshot models.ScoreSnapshot, stopChan <-ch
 				scoreSnapshot.Total++
 			}
 
-			body, err := json.Marshal(scoreSnapshot)
-			if err != nil {
-				log.Fatalf("Error marshalling simulation score %v", err)
-			}
-
-			message := amqp.Publishing{
-				ContentType: "application/json",
-				Body:        body,
-			}
-
-			err = g.channel.Publish("", queueName, false, false, message)
-			if err != nil {
-				log.Fatalf("Error publishing simulation score %v", err)
+			if err = g.publishSnapshot(scoreSnapshot, queueName); err != nil {
+				log.Printf("Error publishing simulation score: %v", err)
 			}
 		}
 	}
+}
+
+func (g *Generator) publishSnapshot(scoreSnapshot models.ScoreSnapshot, queueName string) error {
+	body, err := json.Marshal(scoreSnapshot)
+	if err != nil {
+		return fmt.Errorf("error marshalling snapshot: %w", err)
+	}
+
+	message := amqp.Publishing{
+		ContentType: "application/json",
+		Body:        body,
+	}
+
+	return g.channel.Publish("", queueName, false, false, message)
 }

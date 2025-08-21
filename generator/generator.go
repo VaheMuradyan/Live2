@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"fmt"
 	"github.com/VaheMuradyan/Live2/cache"
 	"github.com/VaheMuradyan/Live2/centrifugoClient"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -25,12 +26,12 @@ func NewGenerator(client *centrifugoClient.CentrifugoClient, db *gorm.DB) *Gener
 
 	conn, err := amqp.Dial(rabbitmqURL)
 	if err != nil {
-		panic(err)
+		fmt.Printf("failed to connect to RabbitMQ: %v\n", err)
 	}
 
 	channel, err := conn.Channel()
 	if err != nil {
-		panic(err)
+		fmt.Printf("failed to connect to RabbitMQ: %v\n", err)
 	}
 
 	return &Generator{

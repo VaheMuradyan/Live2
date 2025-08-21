@@ -335,7 +335,7 @@
         console.log('🔗 Connecting to Centrifugo...');
         updateStatus('Connecting...');
 
-        centrifuge = new Centrifuge('ws://localhost:8001/connection/websocket');
+        centrifuge = new Centrifuge('ws://localhost:8000/connection/websocket');
 
         centrifuge.on('connected', function(ctx) {
             console.log(`✅ Connected! Client ID: ${ctx.client}`);
